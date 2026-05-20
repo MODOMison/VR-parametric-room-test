@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Parametric XR Room Lab v1.1</title>
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <style>
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0d121a;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    a-scene {
+      width: 100vw;
+      height: 100vh;
+    }
+    #panel {
+      position: fixed;
+      z-index: 10;
+      top: 14px;
+      right: 14px;
+      width: 340px;
+      max-height: calc(100vh - 28px);
+      overflow-y: auto;
+      color: #f4f7fb;
+      background: rgba(10, 14, 20, 0.9);
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 16px;
+      box-shadow: 0 18px 44px rgba(0,0,0,0.42);
+      backdrop-filter: blur(10px);
+    }
+    #panel header {
+      padding: 14px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.12);
+      position: sticky;
+      top: 0;
+      background: rgba(10, 14, 20, 0.96);
+      z-index: 2;
+    }
+    #panel h1 {
+      font-size: 18px;
+      margin: 0 0 5px;
+    }
+    #panel p {
+      margin: 0;
+      color: #b5bfcc;
+      font-size: 12px;
+      line-height: 1.35;
+    }
+    .section {
+      padding: 13px 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+    }
+    .section h2 {
+      font-size: 12px;
+      margin: 0 0 12px;
+      color: #77d9ff;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+    }
+    .control {
+      margin-bottom: 12px;
+    }
+    label {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      font-size: 13px;
+      margin-bottom: 5px;
+    }
+    .value {
+      color: #aab6c5;
+      font-variant-numeric: tabular-nums;
+      font-size: 12px;
+    }
+    input[type="range"] {
+      width: 100%;
+      accent-color: #77d9ff;
+    }
+    select, button, textarea {
+      width: 100%;
+      box-sizing: border-box;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.18);
+      color: #f4f7fb;
+      background: rgba(255,255,255,0.08);
+      padding: 8px 10px;
+      font-family: inherit;
+    }
+    button { cursor: pointer; }
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .swatches {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+    .swatch {
+      height: 32px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.22);
+      cursor: pointer;
+    }
+    textarea {
+      min-height: 120px;
+      resize: vertical;
+      font-size: 11px;
+      color: #d9f6ff;
+      font-family: Consolas, "Cascadia Code", monospace;
+    }
+    #status {
+      position: fixed;
+      left: 14px;
+      bottom: 14px;
+      z-index: 10;
+      color: #f4f7fb;
+      background: rgba(10,14,20,0.82);
+      border: 1px solid rgba(255,255,255,0.14);
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 12px;
+    }
+    #status strong { color: #77d9ff; }
+  </style>
+</head>
+<body>
+  <div id="panel">
+    <header>
+      <h1>Parametric XR Room Lab v1.1</h1>
+      <p>Procedural A-Frame room with bowed walls, dome ceiling, lighting, material depth cues, plants, furniture, and exportable schema.</p>
+    </header>
+
+    <div class="section">
+      <h2>Room Geometry</h2>
+      <div class="control"><label>Width <span id="widthVal" class="value"></span></label><input id="width" type="range" min="4" max="12" step="0.1"></div>
+      <div class="control"><label>Depth <span id="depthVal" class="value"></span></label><input id="depth" type="range" min="4" max="12" step="0.1"></div>
+      <div class="control"><label>Ceiling Height <span id="heightVal" class="value"></span></label><input id="height" type="range" min="2.2" max="6" step="0.05"></div>
+      <div class="control"><label>Wall Bow <span id="wallBowVal" class="value"></span></label><input id="wallBow" type="range" min="-1" max="1" step="0.01"></div>
+      <div class="control"><label>Ceiling Dome <span id="ceilingBowVal" class="value"></span></label><input id="ceilingBow" type="range" min="-1" max="1" step="0.01"></div>
+    </div>
+
+    <div class="section">
+      <h2>Lighting</h2>
+      <div class="control"><label>Light Intensity <span id="lightIntensityVal" class="value"></span></label><input id="lightIntensity" type="range" min="0" max="2.5" step="0.01"></div>
+      <div class="control"><label>Color Temperature <span id="colorTempVal" class="value"></span></label><input id="colorTemp" type="range" min="2200" max="8000" step="50"></div>
+      <div class="control"><label>Ambient Fill <span id="ambientFillVal" class="value"></span></label><input id="ambientFill" type="range" min="0" max="1.5" step="0.01"></div>
+    </div>
+
+    <div class="section">
+      <h2>Materials</h2>
+      <div class="control">
+        <label>Material Mode</label>
+        <select id="materialMode">
+          <option value="researchGrid">Research Grid</option>
+          <option value="warmPanels">Warm Panels</option>
+          <option value="coolConcrete">Cool Concrete</option>
+          <option value="biophilicSoft">Biophilic Soft</option>
+        </select>
+      </div>
+      <div class="control"><label>Roughness <span id="roughnessVal" class="value"></span></label><input id="roughness" type="range" min="0.2" max="1" step="0.01"></div>
+      <div class="control"><label>Grid Strength <span id="gridStrengthVal" class="value"></span></label><input id="gridStrength" type="range" min="0" max="1" step="0.01"></div>
+    </div>
+
+    <div class="section">
+      <h2>Per-Wall Color</h2>
+      <div class="control">
+        <label>Selected Wall</label>
+        <select id="selectedWall">
+          <option value="north">North</option>
+          <option value="south">South</option>
+          <option value="east">East</option>
+          <option value="west">West</option>
+          <option value="all">All</option>
+        </select>
+      </div>
+      <div class="swatches" id="swatches"></div>
+    </div>
+
+    <div class="section">
+      <h2>Environment</h2>
+      <div class="control"><label>Plant Density <span id="plantDensityVal" class="value"></span></label><input id="plantDensity" type="range" min="0" max="1" step="0.01"></div>
+      <div class="control"><label>Furniture Density <span id="furnitureDensityVal" class="value"></span></label><input id="furnitureDensity" type="range" min="0" max="1" step="0.01"></div>
+      <div class="control"><label>Window Scale <span id="windowScaleVal" class="value"></span></label><input id="windowScale" type="range" min="0" max="1.8" step="0.01"></div>
+      <div class="control"><label>Visual Complexity <span id="complexityVal" class="value"></span></label><input id="complexity" type="range" min="0" max="1" step="0.01"></div>
+    </div>
+
+    <div class="section">
+      <h2>System</h2>
+      <div class="row">
+        <button id="resetBtn">Reset</button>
+        <button id="exportBtn">Export JSON</button>
+      </div>
+      <div class="control" style="margin-top:10px;"><textarea id="exportBox" readonly></textarea></div>
+    </div>
+  </div>
+
+  <div id="status"><strong>Move:</strong> WASD + mouse. Try Wall Bow and Ceiling Dome after the scene appears.</div>
+
+  <a-scene
+    renderer="antialias: true; colorManagement: true; physicallyCorrectLights: true; shadowMapType: pcfsoft"
+    background="color: #111720"
+    vr-mode-ui="enabled: true">
+
+    <a-entity id="rig" position="0 1.25 2.2" rotation="0 180 0">
+      <a-camera
+        id="mainCamera"
+        wasd-controls="acceleration: 18; fly: false"
+        look-controls="pointerLockEnabled: true"
+        position="0 0 0">
+      </a-camera>
+    </a-entity>
+
+    <a-entity id="roomEntity" parametric-room></a-entity>
+    <a-entity id="propsEntity"></a-entity>
+
+    <a-entity id="sunLight" light="type: directional; intensity: 1.1; castShadow: true; shadowCameraLeft: -14; shadowCameraRight: 14; shadowCameraTop: 14; shadowCameraBottom: -14; shadowMapWidth: 2048; shadowMapHeight: 2048" position="-4 7 5"></a-entity>
+    <a-entity id="hemiLight" light="type: hemisphere; intensity: 0.75; color: #ffffff; groundColor: #6a5d4d"></a-entity>
+    <a-entity id="coveNorth" light="type: point; intensity: 0.35; distance: 9; decay: 1.2; color: #ffe7bd" position="0 3 -3"></a-entity>
+    <a-entity id="coveSouth" light="type: point; intensity: 0.25; distance: 9; decay: 1.2; color: #ffe7bd" position="0 3 3"></a-entity>
+  </a-scene>
+
+  <script>
+    const DEFAULTS = {
+      width: 7.5,
+      depth: 7.5,
+      height: 3.4,
+      wallBow: 0,
+      ceilingBow: 0,
+      lightIntensity: 1.15,
+      colorTemp: 4200,
+      ambientFill: 0.8,
+      materialMode: 'researchGrid',
+      roughness: 0.72,
+      gridStrength: 0.8,
+      selectedWall: 'north',
+      plantDensity: 0.35,
+      furnitureDensity: 0.45,
+      windowScale: 1.0,
+      complexity: 0.25,
+      wallColors: {
+        north: '#d8dde2',
+        south: '#d8dde2',
+        east: '#d8dde2',
+        west: '#d8dde2'
+      }
+    };
+
+    const params = JSON.parse(JSON.stringify(DEFAULTS));
+
+    const palettes = {
+      researchGrid: { wall: '#d8dde2', ceiling: '#eef2f4', floor: '#9f9b90', line: '#4b535c' },
+      warmPanels: { wall: '#c7ad8d', ceiling: '#e8dccb', floor: '#7a5734', line: '#4b3524' },
+      coolConcrete: { wall: '#9fa8ad', ceiling: '#c8cdd1', floor: '#676f73', line: '#30373b' },
+      biophilicSoft: { wall: '#c9d5c3', ceiling: '#eef1e8', floor: '#7b684e', line: '#40533f' }
+    };
+
+    const swatchColors = ['#d8dde2', '#b8d2ba', '#c7ad8d', '#a8c6dd', '#d6b7c6', '#b9b2a7', '#f0e4c7', '#9fa8ad'];
+
+    const wallOrder = ['north', 'east', 'south', 'west'];
+
+    function clamp(v, min, max) { return Math.max(min, Math.min(max, v)); }
+    function lerp(a, b, t) { return a + (b - a) * t; }
+
+    function kelvinToColor(k) {
+      let temp = k / 100;
+      let r, g, b;
+      if (temp <= 66) {
+        r = 255;
+        g = 99.4708025861 * Math.log(temp) - 161.1195681661;
+        b = temp <= 19 ? 0 : 138.5177312231 * Math.log(temp - 10) - 305.0447927307;
+      } else {
+        r = 329.698727446 * Math.pow(temp - 60, -0.1332047592);
+        g = 288.1221695283 * Math.pow(temp - 60, -0.0755148492);
+        b = 255;
+      }
+      return new THREE.Color(clamp(r,0,255)/255, clamp(g,0,255)/255, clamp(b,0,255)/255);
+    }
+
+    function makeTexture(kind) {
+      const pal = palettes[params.materialMode];
+      const canvas = document.createElement('canvas');
+      canvas.width = 512;
+      canvas.height = 512;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = kind === 'floor' ? pal.floor : kind === 'ceiling' ? pal.ceiling : pal.wall;
+      ctx.fillRect(0, 0, 512, 512);
+
+      ctx.strokeStyle = pal.line;
+      ctx.lineWidth = kind === 'floor' ? 2.5 : 1.6;
+      ctx.globalAlpha = 0.08 + params.gridStrength * 0.34;
+      const step = kind === 'floor' ? 64 : 72;
+      for (let x = 0; x <= 512; x += step) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 512); ctx.stroke();
+      }
+      for (let y = 0; y <= 512; y += step) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(512, y); ctx.stroke();
+      }
+      if (kind === 'ceiling') {
+        ctx.globalAlpha = 0.08 + params.gridStrength * 0.18;
+        for (let r = 55; r < 390; r += 55) {
+          ctx.beginPath(); ctx.arc(256, 256, r, 0, Math.PI * 2); ctx.stroke();
+        }
+      }
+      if (params.materialMode === 'coolConcrete') {
+        ctx.globalAlpha = 0.05;
+        for (let i = 0; i < 1200; i++) {
+          const v = Math.floor(110 + Math.random() * 85);
+          ctx.fillStyle = `rgb(${v},${v},${v})`;
+          ctx.fillRect(Math.random()*512, Math.random()*512, 1.3, 1.3);
+        }
+      }
+      const tex = new THREE.CanvasTexture(canvas);
+      tex.wrapS = THREE.RepeatWrapping;
+      tex.wrapT = THREE.RepeatWrapping;
+      tex.anisotropy = 8;
+      if (kind === 'floor') tex.repeat.set(4,4);
+      if (kind === 'wall') tex.repeat.set(3,2);
+      if (kind === 'ceiling') tex.repeat.set(3,3);
+      return tex;
+    }
+
+    function makeMat(kind, wallId) {
+      const pal = palettes[params.materialMode];
+      const base = kind === 'floor' ? pal.floor : kind === 'ceiling' ? pal.ceiling : (wallId ? params.wallColors[wallId] : pal.wall);
+      return new THREE.MeshStandardMaterial({
+        color: new THREE.Color(base),
+        map: makeTexture(kind),
+        roughness: params.roughness,
+        metalness: 0.02,
+        side: THREE.DoubleSide
+      });
+    }
+
+    function disposeObj(obj) {
+      obj.traverse((child) => {
+        if (child.geometry) child.geometry.dispose();
+        if (child.material) {
+          const arr = Array.isArray(child.material) ? child.material : [child.material];
+          arr.forEach((m) => {
+            if (m.map) m.map.dispose();
+            m.dispose();
+          });
+        }
+      });
+    }
+
+    function boundaryPoint(side, u, yFrac, p) {
+      const w = p.width, d = p.depth, h = p.height;
+      const x0 = -w/2, x1 = w/2, z0 = -d/2, z1 = d/2;
+      const bow = p.wallBow * Math.min(w, d) * 0.18 * Math.pow(Math.sin(yFrac * Math.PI / 2), 1.12);
+      let x, z;
+      if (side === 'north') { x = lerp(x0 - bow, x1 + bow, u); z = z0 - bow; }
+      else if (side === 'east') { x = x1 + bow; z = lerp(z0 - bow, z1 + bow, u); }
+      else if (side === 'south') { x = lerp(x1 + bow, x0 - bow, u); z = z1 + bow; }
+      else { x = x0 - bow; z = lerp(z1 + bow, z0 - bow, u); }
+      return new THREE.Vector3(x, yFrac * h, z);
+    }
+
+    function ceilingPoint(u, v, p) {
+      const w = p.width, d = p.depth;
+      const baseX = lerp(-w/2, w/2, u);
+      const baseZ = lerp(d/2, -d/2, v);
+      const nx = baseX / (w/2);
+      const nz = baseZ / (d/2);
+      const ax = Math.abs(nx), az = Math.abs(nz);
+      const maxA = Math.max(ax, az);
+      const topBow = p.wallBow * Math.min(w, d) * 0.18;
+      const edgeBlend = Math.pow(maxA, 2.2);
+      const x = baseX + Math.sign(nx) * topBow * edgeBlend * ax;
+      const z = baseZ + Math.sign(nz) * topBow * edgeBlend * az;
+      const domeWeight = Math.pow(clamp(1 - maxA, 0, 1), 0.85);
+      const y = p.height + p.ceilingBow * p.height * 0.32 * domeWeight;
+      return new THREE.Vector3(x, y, z);
+    }
+
+    function floorPoint(u, v, p) {
+      return new THREE.Vector3(lerp(-p.width/2, p.width/2, u), 0, lerp(p.depth/2, -p.depth/2, v));
+    }
+
+    function buildRoomMesh() {
+      const pos = [];
+      const uv = [];
+      const idx = [];
+      const groups = [];
+      const map = new Map();
+      const mats = [makeMat('floor'), makeMat('ceiling'), makeMat('wall','north'), makeMat('wall','east'), makeMat('wall','south'), makeMat('wall','west')];
+      const matIndex = { floor:0, ceiling:1, north:2, east:3, south:4, west:5 };
+
+      function key(pt) { return `${pt.x.toFixed(4)},${pt.y.toFixed(4)},${pt.z.toFixed(4)}`; }
+      function addVertex(pt, tuv) {
+        const k = key(pt);
+        if (map.has(k)) return map.get(k);
+        const n = pos.length / 3;
+        map.set(k, n);
+        pos.push(pt.x, pt.y, pt.z);
+        uv.push(tuv[0], tuv[1]);
+        return n;
+      }
+      function addGrid(name, rows, cols, pointFn, uvFn, flip) {
+        const start = idx.length;
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            const u0 = c / cols, u1 = (c+1) / cols;
+            const v0 = r / rows, v1 = (r+1) / rows;
+            const a = addVertex(pointFn(u0, v0), uvFn(u0, v0));
+            const b = addVertex(pointFn(u0, v1), uvFn(u0, v1));
+            const cI = addVertex(pointFn(u1, v0), uvFn(u1, v0));
+            const d = addVertex(pointFn(u1, v1), uvFn(u1, v1));
+            if (flip) idx.push(a, cI, b, cI, d, b);
+            else idx.push(a, b, cI, cI, b, d);
+          }
+        }
+        groups.push({ start, count: idx.length - start, materialIndex: matIndex[name] });
+      }
+
+      addGrid('floor', 36, 36, (u,v)=>floorPoint(u,v,params), (u,v)=>[u*4,v*4], false);
+      addGrid('ceiling', 36, 36, (u,v)=>ceilingPoint(u,v,params), (u,v)=>[u*3,v*3], true);
+      wallOrder.forEach((side) => {
+        addGrid(side, 28, 44, (u,v)=>boundaryPoint(side,u,v,params), (u,v)=>[u*3,v*2], side === 'south' || side === 'west');
+      });
+
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      geo.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+      geo.setIndex(idx);
+      groups.forEach(g => geo.addGroup(g.start, g.count, g.materialIndex));
+      geo.computeVertexNormals();
+      geo.computeBoundingSphere();
+      const mesh = new THREE.Mesh(geo, mats);
+      mesh.name = 'Connected_Parametric_Room_Shell';
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+      return mesh;
+    }
+
+    AFRAME.registerComponent('parametric-room', {
+      init: function () {
+        this.group = new THREE.Group();
+        this.el.setObject3D('mesh', this.group);
+        this.rebuild();
+      },
+      rebuild: function () {
+        while (this.group.children.length) disposeObj(this.group.children.pop());
+        this.group.add(buildRoomMesh());
+      }
+    });
+
+    function makePlant(x,z,s) {
+      const g = new THREE.Group();
+      const potMat = new THREE.MeshStandardMaterial({color:'#735039', roughness:0.8});
+      const stemMat = new THREE.MeshStandardMaterial({color:'#46301e', roughness:0.8});
+      const leafMat = new THREE.MeshStandardMaterial({color:'#3e7d44', roughness:0.75});
+      const pot = new THREE.Mesh(new THREE.CylinderGeometry(0.18*s,0.25*s,0.3*s,16), potMat);
+      pot.position.y = 0.15*s; pot.castShadow = true; pot.receiveShadow = true; g.add(pot);
+      const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.025*s,0.035*s,0.7*s,10), stemMat);
+      stem.position.y = 0.6*s; stem.castShadow = true; g.add(stem);
+      for(let i=0;i<8;i++){
+        const leaf = new THREE.Mesh(new THREE.SphereGeometry(0.22*s,12,8), leafMat.clone());
+        const a = i/8*Math.PI*2;
+        leaf.position.set(Math.cos(a)*0.18*s, (0.76+(i%3)*0.08)*s, Math.sin(a)*0.18*s);
+        leaf.scale.set(1.5,0.35,0.75);
+        leaf.rotation.set(0.25, a, 0.2);
+        leaf.castShadow = true; g.add(leaf);
+      }
+      g.position.set(x,0,z);
+      return g;
+    }
+
+    function makeFurniture() {
+      const g = new THREE.Group();
+      const count = Math.round(params.furnitureDensity * 5);
+      const wood = new THREE.MeshStandardMaterial({color:'#735238', roughness:0.7});
+      const dark = new THREE.MeshStandardMaterial({color:'#272d33', roughness:0.65});
+      for(let i=0;i<count;i++){
+        const a = i/Math.max(1,count)*Math.PI*2 + 0.3;
+        const x = Math.cos(a)*params.width*0.22;
+        const z = Math.sin(a)*params.depth*0.22;
+        const desk = new THREE.Mesh(new THREE.BoxGeometry(0.85,0.08,0.55), wood.clone());
+        desk.position.set(x,0.72,z); desk.rotation.y = -a; desk.castShadow=true; desk.receiveShadow=true; g.add(desk);
+        const chair = new THREE.Mesh(new THREE.BoxGeometry(0.38,0.08,0.38), dark.clone());
+        chair.position.set(x+Math.cos(a)*0.62,0.45,z+Math.sin(a)*0.62); chair.rotation.y=-a; chair.castShadow=true; chair.receiveShadow=true; g.add(chair);
+      }
+      return g;
+    }
+
+    function makeWindow() {
+      const g = new THREE.Group();
+      if (params.windowScale < 0.03) return g;
+      const s = params.windowScale;
+      const w = 1.75*s, h = 1.15*s;
+      const y = clamp(params.height*0.58, 1.1, params.height-0.55);
+      const z = params.depth/2 + 0.08;
+      const glass = new THREE.Mesh(new THREE.PlaneGeometry(w,h), new THREE.MeshStandardMaterial({color:'#8fc5ff', transparent:true, opacity:0.38, roughness:0.1, side:THREE.DoubleSide}));
+      glass.position.set(0,y,z); glass.rotation.y = Math.PI; g.add(glass);
+      const frameMat = new THREE.MeshStandardMaterial({color:'#22262c', roughness:0.55});
+      [[w+0.12,0.05,0, h/2], [w+0.12,0.05,0,-h/2], [0.05,h+0.12,-w/2,0], [0.05,h+0.12,w/2,0]].forEach(([bw,bh,xo,yo])=>{
+        const m = new THREE.Mesh(new THREE.BoxGeometry(bw,bh,0.05), frameMat.clone());
+        m.position.set(xo,y+yo,z+0.02); m.castShadow=true; g.add(m);
+      });
+      return g;
+    }
+
+    function rebuildProps() {
+      const root = document.getElementById('propsEntity').object3D;
+      while(root.children.length) disposeObj(root.children.pop());
+      const plantCount = Math.round(params.plantDensity * 18);
+      for(let i=0;i<plantCount;i++){
+        const side = i%4;
+        const t = ((i*0.37)%1)*0.78-0.39;
+        let x=0,z=0,m=0.55;
+        if(side===0){x=t*params.width; z=-params.depth/2+m;}
+        if(side===1){x=t*params.width; z=params.depth/2-m;}
+        if(side===2){x=-params.width/2+m; z=t*params.depth;}
+        if(side===3){x=params.width/2-m; z=t*params.depth;}
+        root.add(makePlant(x,z,0.75+((i*11)%7)*0.05));
+      }
+      root.add(makeFurniture());
+      root.add(makeWindow());
+      const compCount = Math.round(params.complexity*10);
+      const mat = new THREE.MeshStandardMaterial({color:'#aaa69e', roughness:0.82});
+      for(let i=0;i<compCount;i++){
+        const panel = new THREE.Mesh(new THREE.BoxGeometry(0.1,0.8+(i%3)*0.2,0.5), mat.clone());
+        panel.position.set((Math.random()-0.5)*params.width*0.75, 0.45, (Math.random()-0.5)*params.depth*0.75);
+        panel.castShadow=true; panel.receiveShadow=true; root.add(panel);
+      }
+    }
+
+    function applyLighting() {
+      const c = kelvinToColor(params.colorTemp);
+      const hex = `#${c.getHexString()}`;
+      document.getElementById('sunLight').setAttribute('light','intensity',params.lightIntensity*0.85);
+      document.getElementById('sunLight').setAttribute('light','color',hex);
+      document.getElementById('hemiLight').setAttribute('light','intensity',params.ambientFill);
+      document.getElementById('hemiLight').setAttribute('light','color',`#${c.clone().lerp(new THREE.Color('#ffffff'),0.45).getHexString()}`);
+      ['coveNorth','coveSouth'].forEach((id,i)=>{
+        const el = document.getElementById(id);
+        el.setAttribute('light','color',hex);
+        el.setAttribute('light','intensity',(0.22+i*0.08)+params.lightIntensity*0.12);
+        el.object3D.position.y = params.height - 0.2;
+        el.object3D.position.z = id === 'coveNorth' ? -params.depth/2+0.45 : params.depth/2-0.45;
+      });
+    }
+
+    function rebuildAll() {
+      const room = document.getElementById('roomEntity');
+      if (room && room.components['parametric-room']) room.components['parametric-room'].rebuild();
+      rebuildProps();
+      applyLighting();
+      updateLabels();
+      updateExport();
+    }
+
+    function updateLabels() {
+      ['width','depth','height','wallBow','ceilingBow','lightIntensity','colorTemp','ambientFill','roughness','gridStrength','plantDensity','furnitureDensity','windowScale','complexity'].forEach(k=>{
+        const el = document.getElementById(k+'Val');
+        if (!el) return;
+        const suffix = k==='width'||k==='depth'||k==='height' ? ' m' : k==='colorTemp' ? ' K' : '';
+        el.textContent = (k==='colorTemp' ? params[k].toFixed(0) : params[k].toFixed(2)) + suffix;
+      });
+    }
+
+    function updateExport() {
+      document.getElementById('exportBox').value = JSON.stringify({
+        prototype: 'Parametric XR Room Lab v1.1',
+        schema_version: '1.1',
+        params,
+        geometry_notes: 'Continuous procedural shell. Wall corners use shared bowed boundary math. Ceiling uses matching top-boundary expansion, avoiding threshold sphere swaps.'
+      }, null, 2);
+    }
+
+    function bindUI() {
+      Object.keys(params).forEach(k=>{
+        const el = document.getElementById(k);
+        if (!el || typeof params[k] === 'object') return;
+        el.value = params[k];
+        el.addEventListener('input',()=>{
+          params[k] = typeof DEFAULTS[k] === 'number' ? parseFloat(el.value) : el.value;
+          rebuildAll();
+        });
+      });
+      document.getElementById('selectedWall').addEventListener('change',e=>{ params.selectedWall = e.target.value; updateExport(); });
+      const sw = document.getElementById('swatches');
+      swatchColors.forEach(color=>{
+        const b = document.createElement('div');
+        b.className='swatch'; b.style.background=color;
+        b.addEventListener('click',()=>{
+          if(params.selectedWall==='all') Object.keys(params.wallColors).forEach(w=>params.wallColors[w]=color);
+          else params.wallColors[params.selectedWall]=color;
+          rebuildAll();
+        });
+        sw.appendChild(b);
+      });
+      document.getElementById('resetBtn').addEventListener('click',()=>{
+        const fresh = JSON.parse(JSON.stringify(DEFAULTS));
+        Object.keys(fresh).forEach(k=>params[k]=fresh[k]);
+        Object.keys(params).forEach(k=>{ const el=document.getElementById(k); if(el && typeof params[k] !== 'object') el.value=params[k]; });
+        rebuildAll();
+      });
+      document.getElementById('exportBtn').addEventListener('click',()=>{ updateExport(); document.getElementById('exportBox').select(); });
+      updateLabels(); updateExport();
+    }
+
+    document.querySelector('a-scene').addEventListener('loaded', () => {
+      bindUI();
+      setTimeout(rebuildAll, 50);
+    });
+  </script>
+</body>
+</html>
